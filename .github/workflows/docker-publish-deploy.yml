@@ -1,0 +1,44 @@
+name: Build, Push Docker Image, and Deploy to PC
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  docker-build-push:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-actions-demo:latest
+
+  deploy-to-pc:
+    needs: docker-build-push
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Deploy over SSH
+      uses: appleboy/ssh-action@v1
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        port: 22
+        script: |
+          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-actions-demo:latest
+          docker stop fastapi-demo || true
+          docker rm fastapi-demo || true
+          docker run -d --name fastapi-demo -p 8000:8000 ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-actions-demo:latest
