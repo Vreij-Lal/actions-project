@@ -1,4 +1,4 @@
-name: Build, Push Docker Image, and Deploy to WSL
+name: Build, Push Docker Image, and Deploy via SSH
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
 
 jobs:
   docker-build-push:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       
@@ -23,37 +23,42 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-actions-demo:latest
 
-  deploy-to-wsl:
+  deploy-via-ssh:
     needs: docker-build-push
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
-      - name: Verify Docker is running
-        run: docker ps
-        shell: bash
-        
-      - name: Deploy to WSL
-        env:
-          DOCKER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-actions-demo:latest
-        run: |
-          # Stop and remove old container if exists
-          if [ "$(docker ps -aq -f name=fastapi-demo)" ]; then
-            docker stop fastapi-demo
-            docker rm fastapi-demo
-          fi
-          
-          # Pull the new image
-          docker pull $DOCKER_IMAGE
-          
-          # Run new container
-          docker run -d \
-            --name fastapi-demo \
-            -p 8000:8000 \
-            --restart unless-stopped \
-            $DOCKER_IMAGE
-          
-          # Health check
-          echo "Waiting for container to start..."
-          sleep 10
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # Verify Docker is running
+            docker ps
+            
+            # Stop and remove old container if exists
+            if [ "$(docker ps -aq -f name=fastapi-demo)" ]; then
+              docker stop fastapi-demo
+              docker rm fastapi-demo
+            fi
+            
+            # Pull the new image
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-actions-demo:latest
+            
+            # Run new container
+            docker run -d \
+              --name fastapi-demo \
+              -p 8000:8000 \
+              --restart unless-stopped \
+              ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-actions-demo:latest
+            
+            # Health check
+            echo "Waiting for container to start..."
+            sleep 10
+            docker ps
+            curl -s http://localhost:8000 || echo "Health check failed but continuing"
+            echo "🚀 Deployment successful!"
           docker ps
           curl -s http://localhost:8000 || echo "Health check failed but continuing"
           
