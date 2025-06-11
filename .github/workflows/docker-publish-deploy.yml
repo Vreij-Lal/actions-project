@@ -27,7 +27,7 @@ jobs:
 
   deploy-to-wsl:
     needs: docker-build-push
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Deploy to WSL
         uses: appleboy/ssh-action@v1.0.3  # Critical: Use v1.0.3+ for reliability
