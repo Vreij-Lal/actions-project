@@ -2,7 +2,7 @@ name: Build, Push Docker Image, and Deploy via SSH
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   docker-build-push:
@@ -59,7 +59,3 @@ jobs:
             docker ps
             curl -s http://localhost:8000 || echo "Health check failed but continuing"
             echo "🚀 Deployment successful!"
-          docker ps
-          curl -s http://localhost:8000 || echo "Health check failed but continuing"
-          
-          echo "🚀 Deployment successful!"
